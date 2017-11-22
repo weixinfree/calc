@@ -1,5 +1,12 @@
 from ply import lex
 
+from default_funcs import UNARY, BINARY, CONSTANT
+
+
+class CalcException(BaseException):
+    pass
+
+
 '''
 lex
 '''
@@ -13,9 +20,12 @@ tokens = (
     'TIMES',
     'DIVIDE',
     'LPAREN',
-    'RPAREN'
+    'RPAREN',
+    'COMMA',
+    'POWER'
 )
 
+t_POWER = r'\*\*'
 t_PLUS = r'\+'
 t_MINUS = r'-'
 t_TIMES = r'\*'
@@ -23,6 +33,7 @@ t_DIVIDE = r'/'
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_EQUAL = r'\='
+t_COMMA = r','
 
 
 def t_NAME(t):
@@ -57,12 +68,14 @@ yacc
 '''
 
 precedence = (
+    ('right', 'POWER'),
     ('left', 'PLUS', 'MINUS'),
     ('left', 'TIMES', 'DIVIDE'),
     ('right', 'UMINUS')
 )
 
 names = {}
+names.update(CONSTANT)
 
 
 def p_statement_assign(t):
@@ -86,6 +99,33 @@ binop_map = {
 }
 
 
+def p_expression_group(t):
+    'expression : LPAREN expression RPAREN'
+    t[0] = t[2]
+
+
+def p_expression_biary_func(t):
+    'expression : NAME LPAREN expression COMMA expression RPAREN'
+    func = t[1]
+    if func not in BINARY:
+        raise CalcException(f"不支持的二元函数 {func}")
+    t[0] = BINARY[func](t[3], t[5])
+
+
+def p_expression_unary_func(t):
+    'expression : NAME LPAREN expression RPAREN'
+    func = t[1]
+    if func not in UNARY:
+        raise CalcException(f"不支持的一元函数 {func}")
+
+    t[0] = UNARY[func](t[3])
+
+
+def p_expresion_power(t):
+    "expression : expression POWER expression"
+    t[0] = t[1] ** t[3]
+
+
 def p_expression_binop(t):
     """expression : expression PLUS expression
     | expression MINUS expression
@@ -93,11 +133,6 @@ def p_expression_binop(t):
     | expression DIVIDE expression"""
     _, left, op, right = t
     t[0] = binop_map[op](left, right)
-
-
-def p_expression_group(t):
-    'expression : LPAREN expression RPAREN'
-    t[0] = t[2]
 
 
 def p_expression_uminus(t):
@@ -131,6 +166,8 @@ if __name__ == '__main__':
     while True:
         try:
             s = input('calc > ')
+            parser.parse(s)
+        except CalcException as e:
+            print(e)
         except EOFError:
             break
-        parser.parse(s)
