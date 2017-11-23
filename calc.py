@@ -166,6 +166,9 @@ if __name__ == '__main__':
     while True:
         try:
             s = input('calc > ')
+            if s.strip() == 'exit':
+                exit(0)
+
             parser.parse(s)
         except CalcException as e:
             print(e)
